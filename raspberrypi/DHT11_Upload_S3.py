@@ -31,6 +31,7 @@ sensor = DHT11(sensor_pin)
 
 """ Connect Wi-fi function """
 def connect_wifi(ssid, pw):
+    wdt.feed()
     wifi.active(False)
     time.sleep(1)
     wifi.active(True)
@@ -69,7 +70,6 @@ def measure_and_upload():
         sensor.measure()
     except Exception as e:
         wifi_led_pin.off()
-        time.sleep(2)
         print(f"Sensor measure error: {e}")
         for i in range(10):
             wdt.feed()
@@ -145,6 +145,12 @@ def measure_and_upload():
     return UPLOAD_SUCCESS
 
 
+""" Start Notify """
+wifi_led_pin.on()
+time.sleep(5)
+wifi_led_pin.off()
+
+
 """ Main loop """
 while True:
     """ Cyclic measure and sensor data upload """
@@ -155,8 +161,8 @@ while True:
         if result == UPLOAD_SUCCESS:
             break
     
-    """ 30-minute intervals and manual upload """
-    for i in range(60):
+    """ 20-minute intervals and manual upload """
+    for i in range(240):
         wdt.feed()
         if result == UPLOAD_SUCCESS:
             wifi_led_pin.on()
