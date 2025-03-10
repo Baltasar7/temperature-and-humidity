@@ -3,7 +3,6 @@ import utime as time
 from dht import DHT11
 import socket
 import network
-#import secrets 
 import sys
 import json
 import requests
@@ -25,9 +24,6 @@ button_pin = Pin(15, Pin.IN, Pin.PULL_UP)
 sensor_pin = Pin(16, Pin.OUT, Pin.PULL_UP)
 sensor = DHT11(sensor_pin)
 
-
-""" Sensor stabilize """
-time.sleep(2)
 
 """ Connect Wi-fi function """
 def connect_wifi(ssid, pw):
@@ -64,7 +60,14 @@ def measure_and_upload():
         sensor.measure()
     except Exception as e:
         print(f"Sensor measure error: {e}")
-        sys.exit() 
+        for i in range(10):
+            wifi_led_pin.on()
+            time.sleep(5)
+            wifi_led_pin.off()
+            time.sleep(1)
+        return UPLOAD_FAILED
+        #time.sleep(2)
+        #sys.exit()
     temp = sensor.temperature()
     hum = sensor.humidity()
     print(f"temp:{temp}, hum:{hum}")
@@ -80,12 +83,14 @@ def measure_and_upload():
         presigned_url = response.json().get('signed_url')
     except Exception as e:
         print(f"Failed to get presigned URL: {e}")
-        for i in range(5):
+        for i in range(6):
             wifi_led_pin.on()
-            time.sleep(2)
+            time.sleep(10)
             wifi_led_pin.off()
-            time.sleep(2)
-        sys.exit()
+            time.sleep(1)
+        return UPLOAD_FAILED
+        #time.sleep(2)
+        #sys.exit()
     
     """ Prepare send data """
     current_time = time.localtime()
@@ -115,23 +120,33 @@ def measure_and_upload():
             time.sleep(0.1)
     else:
         print(f"Failed to upload data: {response.status_code}")
-        for i in range(5):
+        for i in range(4):
             wifi_led_pin.on()
-            time.sleep(2)
+            time.sleep(15)
             wifi_led_pin.off()
             time.sleep(1)
-        sys.exit()
+        return UPLOAD_FAILED
+        #time.sleep(2)
+        #sys.exit()
     return UPLOAD_SUCCESS
+
+
+""" Sensor stabilize """
+wifi_led_pin.off()
+time.sleep(2)
 
 
 """ Main loop """
 while True:
     """ Cyclic measure and sensor data upload """
-    result = measure_and_upload()
-    wifi.active(False)
+    for i in range(5):
+        result = measure_and_upload()
+        wifi.active(False)
+        if result == UPLOAD_SUCCESS:
+            break
     
     """ 30-minute intervals and manual upload """
-    for i in range(180):
+    for i in range(60):
         if result == UPLOAD_SUCCESS:
             wifi_led_pin.on()
             time.sleep(0.2)
