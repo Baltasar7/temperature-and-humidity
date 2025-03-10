@@ -1,4 +1,5 @@
 from machine import Pin
+from machine import WDT
 import utime as time
 from dht import DHT11
 import socket
@@ -18,11 +19,14 @@ HOME_WIFI_PW = ""
 PHONE_WIFI_SSID = ""
 PHONE_WIFI_PW = ""
 
+wdt = WDT(timeout=8000)
 wifi = network.WLAN(network.STA_IF)
 wifi_led_pin = Pin('LED',Pin.OUT)
 button_pin = Pin(15, Pin.IN, Pin.PULL_UP)
 sensor_pin = Pin(16, Pin.OUT, Pin.PULL_UP)
 sensor = DHT11(sensor_pin)
+
+
 
 
 """ Connect Wi-fi function """
@@ -35,6 +39,7 @@ def connect_wifi(ssid, pw):
     wifi_led_pin.on()
     time.sleep(1)
     for i in range(15):
+        wdt.feed()
         if wifi.isconnected() == False:
             print(f"Waiting for Wi-fi({ssid}) connection...")
             time.sleep(1)
@@ -55,12 +60,19 @@ def connect_wifi(ssid, pw):
 
 """ Measure and sensor data upload function """
 def measure_and_upload():
+    """ Sensor stabilize """
+    wifi_led_pin.off()
+    time.sleep(2)
+
     """ Sensor measure """
     try:
         sensor.measure()
     except Exception as e:
+        wifi_led_pin.off()
+        time.sleep(2)
         print(f"Sensor measure error: {e}")
         for i in range(10):
+            wdt.feed()
             wifi_led_pin.on()
             time.sleep(5)
             wifi_led_pin.off()
@@ -84,8 +96,9 @@ def measure_and_upload():
     except Exception as e:
         print(f"Failed to get presigned URL: {e}")
         for i in range(6):
+            wdt.feed()
             wifi_led_pin.on()
-            time.sleep(10)
+            time.sleep(5)
             wifi_led_pin.off()
             time.sleep(1)
         return UPLOAD_FAILED
@@ -120,9 +133,10 @@ def measure_and_upload():
             time.sleep(0.1)
     else:
         print(f"Failed to upload data: {response.status_code}")
-        for i in range(4):
+        for i in range(6):
+            wdt.feed()
             wifi_led_pin.on()
-            time.sleep(15)
+            time.sleep(5)
             wifi_led_pin.off()
             time.sleep(1)
         return UPLOAD_FAILED
@@ -131,15 +145,11 @@ def measure_and_upload():
     return UPLOAD_SUCCESS
 
 
-""" Sensor stabilize """
-wifi_led_pin.off()
-time.sleep(2)
-
-
 """ Main loop """
 while True:
     """ Cyclic measure and sensor data upload """
     for i in range(5):
+        wdt.feed()
         result = measure_and_upload()
         wifi.active(False)
         if result == UPLOAD_SUCCESS:
@@ -147,16 +157,17 @@ while True:
     
     """ 30-minute intervals and manual upload """
     for i in range(60):
+        wdt.feed()
         if result == UPLOAD_SUCCESS:
             wifi_led_pin.on()
             time.sleep(0.2)
             wifi_led_pin.off()
-            time.sleep(9.8)
+            time.sleep(4.8)
         else:
             wifi_led_pin.on()
             time.sleep(1.0)
             wifi_led_pin.off()
-            time.sleep(9.0)
+            time.sleep(4.0)
             
         if button_pin.value() == 0:
             break
